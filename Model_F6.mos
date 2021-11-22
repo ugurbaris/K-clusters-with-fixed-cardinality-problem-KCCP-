@@ -1,0 +1,55 @@
+!@encoding CP1252
+model ModelName
+uses "mmxprs"; !gain access to the Xpress-Optimizer solver
+
+declarations 
+  NCLUSTER = 2
+  NITEMS = 40
+  CLUSTER = 1..NCLUSTER
+  ITEMS = 1..NITEMS 
+  Mk : array(CLUSTER) of real 
+                   
+  SIMMATRIX : array(ITEMS,ITEMS) of real 
+  Xjk: array(ITEMS,CLUSTER) of mpvar
+  Xik: array(ITEMS,CLUSTER) of mpvar ! 1 ?F ?TEM i IS IN THE CLUSTER k
+  Yijk : array(ITEMS,ITEMS,CLUSTER) of mpvar ! 1 ?F ITEM i and ITEM j ARE IN THE CLUSTER k                
+end-declarations
+
+Mk :: [2,8]
+
+initializations from 'MatrixForm_PB3_d075.dat'
+  SIMMATRIX as 'SIM'
+end-initializations
+ 
+write(SIMMATRIX)
+
+forall(cluster in CLUSTER, i in ITEMS, j in ITEMS | i<j) Yijk(i,j,cluster) >= Xik(i,cluster) + Xik(j,cluster) -1
+
+forall(cluster in CLUSTER, i in ITEMS, j in ITEMS | i<j) Yijk(i,j,cluster) <= Xik(i,cluster)
+
+forall(cluster in CLUSTER, i in ITEMS, j in ITEMS | i<j) Yijk(i,j,cluster) <= Xik(j,cluster)
+
+forall(i in ITEMS) sum (cluster in CLUSTER) Xik(i,cluster) <= 1
+
+forall(cluster in CLUSTER) sum (i in ITEMS) Xik(i,cluster) = Mk(cluster)
+
+forall(j in ITEMS, cluster in CLUSTER) 
+( (sum(i in 1..(j-1)) Yijk(i,j,cluster)) + (sum(i in (j+1)..NITEMS) Yijk(j,i,cluster)) ) = (Mk(cluster) - 1)*Xik(j,cluster)
+
+
+forall(cluster in CLUSTER , i in ITEMS ,j in ITEMS | i<j) Yijk(i,j,cluster) <= 1
+
+forall(cluster in CLUSTER , i in ITEMS ,j in ITEMS | i<j) Yijk(i,j,cluster) >= 0
+
+forall(ii in ITEMS ,cluster in CLUSTER ) Xik(ii,cluster) is_binary
+
+TotalSim:= sum(cluster in 1..NCLUSTER,i in ITEMS,j in ITEMS | i<j) ((SIMMATRIX(i,j))*(Yijk(i,j,cluster)))
+
+maximize(TotalSim)
+
+write("DONE")
+
+!forall(i,j in ITEMS | i<>j) Xik(i,j) is_binary
+!forall(cluster in CLUSTER , i,j in ITEMS | i<>j) Yijk(i,j,cluster) is_binary
+
+end-model
